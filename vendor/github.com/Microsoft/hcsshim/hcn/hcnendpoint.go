@@ -144,6 +144,7 @@ func createEndpoint(networkId string, endpointSettings string) (*HostComputeEndp
 	// Create endpoint.
 	endpointId := guid.GUID{}
 	var endpointHandle hcnEndpoint
+
 	hr = hcnCreateEndpoint(networkHandle, &endpointId, endpointSettings, &endpointHandle, &resultBuffer)
 	if err := checkForErrors("hcnCreateEndpoint", hr, resultBuffer); err != nil {
 		return nil, err
@@ -323,9 +324,10 @@ func (endpoint *HostComputeEndpoint) Create() (*HostComputeEndpoint, error) {
 
 	jsonString, err := json.Marshal(endpoint)
 	if err != nil {
+               
 		return nil, err
 	}
-
+	
 	logrus.Debugf("hcn::HostComputeEndpoint::Create JSON: %s", jsonString)
 	endpoint, hcnErr := createEndpoint(endpoint.HostComputeNetwork, string(jsonString))
 	if hcnErr != nil {
