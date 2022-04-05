@@ -265,11 +265,17 @@ func cmdDel(args *skel.CmdArgs) error {
 		return err
 	}
 
-	if err := ipam.ExecDel(n.IPAM.Type, args.StdinData); err != nil {
-		return err
+	if n.IPAM.Type != "" {
+		if err := ipam.ExecDel(n.IPAM.Type, args.StdinData); err != nil {
+			return err
+		}
 	}
 
 	epName := hns.ConstructEndpointName(args.ContainerID, args.Netns, n.Name)
+
+	if n.ApiVersion == 2 {
+		return hns.RemoveHcnEndpoint(epName)
+	}
 
 	return hns.RemoveHnsEndpoint(epName, args.Netns, args.ContainerID)
 }
