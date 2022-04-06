@@ -17,6 +17,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"runtime"
 	"strings"
 
@@ -75,8 +76,8 @@ func processEndpointArgs(args *skel.CmdArgs, n *NetConf) (*hns.EndpointInfo, err
 			if len(result.IPs) == 0 {
 				return nil, fmt.Errorf("IPAM plugin return is missing IP config")
 			}
-			epInfo.IpAddress = result.IPs[0].Address.IP
-			epInfo.Gateway = result.IPs[0].Address.IP.Mask(result.IPs[0].Address.Mask)
+			epInfo.IpAddress = result.IPs[0].Address.IP.To4()
+			epInfo.MacAddress = fmt.Sprintf("%v-%02x-%02x-%02x-%02x", n.EndpointMacPrefix, epInfo.IpAddress[0], epInfo.IpAddress[1], epInfo.IpAddress[2], epInfo.IpAddress[3])
 		}
 	}
 	epInfo.DNS = n.GetDNS()
@@ -104,7 +105,6 @@ func cmdHcnAdd(args *skel.CmdArgs, n *NetConf) (*current.Result, error) {
 	if hcnNetwork == nil {
 		return  nil, fmt.Errorf("network %v is not found", networkName)
 	}
-
 	if hnsNetwork == nil {
 		return nil, fmt.Errorf("network %v not found", networkName)
 	}
@@ -121,11 +121,12 @@ func cmdHcnAdd(args *skel.CmdArgs, n *NetConf) (*current.Result, error) {
 			return nil, errors.Annotate(err, "error while processing endpoint args")
 		}
 		epInfo.NetworkId = hcnNetwork.Id
+		gatewayAddr := net.ParseIP(hnsNetwork.Subnets[0].GatewayAddress)
+		epInfo.Gateway = gatewayAddr.To4()
 		n.ApplyDefaultPAPolicy(hnsNetwork.ManagementIP)
 		if n.IPMasq {
 			n.ApplyOutboundNatPolicy(hnsNetwork.Subnets[0].AddressPrefix)
 		}
-		epInfo.MacAddress = fmt.Sprintf("%v-%02x-%02x-%02x-%02x", n.EndpointMacPrefix, epInfo.IpAddress[0], epInfo.IpAddress[1], epInfo.IpAddress[2], epInfo.IpAddress[3])
 		hcnEndpoint, err := hns.GenerateHcnEndpoint(epInfo, &n.NetConf)
 
 		if err != nil {
@@ -270,13 +271,11 @@ func cmdDel(args *skel.CmdArgs) error {
 			return err
 		}
 	}
-
 	epName := hns.ConstructEndpointName(args.ContainerID, args.Netns, n.Name)
 
 	if n.ApiVersion == 2 {
 		return hns.RemoveHcnEndpoint(epName)
 	}
-
 	return hns.RemoveHnsEndpoint(epName, args.Netns, args.ContainerID)
 }
 
